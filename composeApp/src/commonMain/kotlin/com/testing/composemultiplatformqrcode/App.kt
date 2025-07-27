@@ -3,6 +3,7 @@ package com.testing.composemultiplatformqrcode
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -22,6 +23,10 @@ import org.jetbrains.compose.ui.tooling.preview.Preview
 
 import composemultiplatformqrcode.composeapp.generated.resources.Res
 import composemultiplatformqrcode.composeapp.generated.resources.compose_multiplatform
+import dev.icerock.moko.permissions.Permission
+import dev.icerock.moko.permissions.camera.CAMERA
+import dev.icerock.moko.permissions.compose.BindEffect
+import dev.icerock.moko.permissions.compose.rememberPermissionsControllerFactory
 import io.github.alexzhirkevich.qrose.QrData
 import io.github.alexzhirkevich.qrose.options.QrBallShape
 import io.github.alexzhirkevich.qrose.options.QrBrush
@@ -39,13 +44,25 @@ import io.github.alexzhirkevich.qrose.options.horizontalLines
 import io.github.alexzhirkevich.qrose.options.solid
 import io.github.alexzhirkevich.qrose.options.square
 import io.github.alexzhirkevich.qrose.rememberQrCodePainter
+import kotlinx.coroutines.launch
+import org.ncgroup.kscan.BarcodeFormats
+import org.ncgroup.kscan.BarcodeResult
+import org.ncgroup.kscan.ScannerView
 
 @Composable
 @Preview
 fun App() {
     MaterialTheme {
 
+        val factory = rememberPermissionsControllerFactory()
+        val controller = remember(factory) { factory.createPermissionsController() }
+        val scope = rememberCoroutineScope()
+        BindEffect(controller)
+
+        var showScanner by remember { mutableStateOf(false) }
+
         var qrCodeData by remember { mutableStateOf("") }
+        var scannedData by remember { mutableStateOf("") }
 
         val painter = rememberQrCodePainter(
             data = qrCodeData,
@@ -59,34 +76,83 @@ fun App() {
             colors = QrColors(
                 dark = QrBrush.solid(Color.Red),
                 light = QrBrush.solid(Color.Transparent),
-                ball = QrBrush.solid(Color.Yellow),
+                ball = QrBrush.solid(Color.Black),
                 frame = QrBrush.solid(Color.Black)
             ),
             logo = QrLogo(
                 painter = painterResource(Res.drawable.compose_multiplatform),
-                size = .2f,
+                size = .1f,
                 padding = QrLogoPadding.Natural(0.1f)
             ),
             errorCorrectionLevel = QrErrorCorrectionLevel.High,
             fourEyed = true
         )
 
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically)
+        Box(
+            modifier = Modifier
+                .fillMaxSize(),
+            contentAlignment = Alignment.Center
         ) {
-            TextField(
-                value = qrCodeData,
-                onValueChange = {qrCodeData = it}
-            )
-            Image(
-                painter = painter,
-                contentDescription = "QR code referring to the example.com website",
-                modifier = Modifier
-                    .size(200.dp)
-            )
-            Text("Qr Code Date: $qrCodeData")
+            Column(
+                modifier = Modifier.fillMaxSize(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically)
+            ) {
+                TextField(
+                    value = qrCodeData,
+                    onValueChange = { qrCodeData = it }
+                )
+                Image(
+                    painter = painter,
+                    contentDescription = "QR code referring to the example.com website",
+                    modifier = Modifier
+                        .size(200.dp)
+                )
+                Text("Qr Code Date: $qrCodeData")
+
+                Button(
+                    onClick = {
+                        //check the camera permission
+                        scope.launch {
+                            runCatching {
+                                controller.providePermission(Permission.CAMERA)
+                            }.onFailure {
+                                //handle the exception cases
+                            }
+
+                            //we have the camera permission and we can continue
+                            showScanner = true
+                        }
+                    }
+                ) {
+                    Text("Scan QR Code")
+                }
+
+                Text("Scanned Data: $scannedData")
+            }
+
+            if (showScanner) {
+                ScannerView(
+                    codeTypes = listOf(
+                        BarcodeFormats.FORMAT_QR_CODE,
+                    )
+                ) { result ->
+                    when (result) {
+                        is BarcodeResult.OnSuccess -> {
+                            scannedData = result.barcode.data
+                            showScanner = false
+                        }
+                        is BarcodeResult.OnFailed -> {
+                            result.exception.printStackTrace()
+                            showScanner = false
+                        }
+                        BarcodeResult.OnCanceled -> {
+                            showScanner = false
+                        }
+                    }
+                }
+            }
         }
+
     }
 }

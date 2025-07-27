@@ -4,5 +4,7 @@
 <dict>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
+    <key>NsCameraUsageDescription</key>
+    <string>We need your camera permission to scan the QR Code!</string>
 </dict>
 </plist>

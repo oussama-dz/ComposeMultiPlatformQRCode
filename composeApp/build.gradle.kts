@@ -45,6 +45,11 @@ kotlin {
             implementation(libs.androidx.lifecycle.runtimeCompose)
 
             implementation("io.github.alexzhirkevich:qrose:1.0.1")
+
+            implementation("io.github.ismai117:KScan:0.1.0-beta08")
+
+            implementation("dev.icerock.moko:permissions-camera:0.19.1")
+            api("dev.icerock.moko:permissions-compose:0.19.1")
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
